@@ -30,13 +30,12 @@ let client;
 // To be call from the main process
 function setup(webContents) {
   // Will be called by the renderer process
-  ipcMain.on(START_NOTIFICATION_SERVICE, async (_, senderId) => {
+  ipcMain.on(START_NOTIFICATION_SERVICE, async (_, config) => {
     // Retrieve saved credentials
     let credentials = store.get('credentials');
-    // Retrieve saved senderId
-    const savedSenderId = store.get('senderId');
+
     if (started) {
-      webContents.send(NOTIFICATION_SERVICE_STARTED, (credentials.fcm || {}).token);
+      webContents.send(NOTIFICATION_SERVICE_STARTED, (credentials || {}).token);
       return;
     }
     started = true;
@@ -44,12 +43,10 @@ function setup(webContents) {
       // Retrieve saved persistentId : avoid receiving all already received notifications on start
       const persistentIds = store.get('persistentIds') || [];
       // Register if no credentials or if senderId has changed
-      if (!credentials || savedSenderId !== senderId) {
-        credentials = await register(senderId);
+      if (!credentials) {
+        credentials = await register(config);
         // Save credentials for later use
         store.set('credentials', credentials);
-        // Save senderId
-        store.set('senderId', senderId);
         // Notify the renderer process that the FCM token has changed
         webContents.send(TOKEN_UPDATED, credentials.fcm.token);
       }
@@ -74,7 +71,6 @@ function setup(webContents) {
     }
     // clear cache
     store.set('credentials', null);
-    store.set('senderId', null);
     store.set('persistentIds', null);
     started = false;
   });
